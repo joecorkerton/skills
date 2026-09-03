@@ -1,0 +1,16 @@
+# Memory index
+
+This file is a map, not a journal. At the start of a run, use the “Read when” column to open only relevant topic files.
+
+| Memory | Read when | Summary | Updated |
+| --- | --- | --- | --- |
+| [`memories/{{TOPIC}}.md`](memories/{{TOPIC}}.md) | {{SPECIFIC_TRIGGER}} | {{ONE_LINE_SUMMARY}} | {{YYYY-MM-DD}} |
+
+## Maintenance contract
+
+- Keep one topic per `memories/<kebab-case-topic>.md` file.
+- Index every topic file and keep every link valid.
+- Update a topic's current truth instead of appending a chronological log; git retains history.
+- Change the topic file and this index atomically.
+- Store durable context only. Keep queues, cursors, locks, pending work, run status, and raw output in the designated external system.
+- Never store credentials, secret values, private keys, sensitive personal data, or raw conversation transcripts.
