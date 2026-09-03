@@ -1,0 +1,17 @@
+{
+  "name": "@joecorkerton/skills",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Reusable agent skills installable with the skills CLI",
+  "scripts": {
+    "new": "node scripts/new-skill.mjs",
+    "check": "node scripts/check-skills.mjs",
+    "test": "npm run check"
+  },
+  "devDependencies": {
+    "skills": "1.5.23"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
