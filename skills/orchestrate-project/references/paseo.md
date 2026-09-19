@@ -5,9 +5,15 @@ Inspect current schemas at deployment; the names below were verified against ava
 ## Discovery and profiles
 
 - `paseo_list_workspaces`, `paseo_list_agents`, `paseo_list_schedules`: discover existing ownership before writes. Agent listing defaults to recent results; widen `sinceHours`, `limit`, `includeArchived`, and filters as supported. A truncated/recent list is not proof of absence.
-- `paseo_list_profiles`: copy chosen profile's `provider`, `model`, `modeId`, `thinkingOptionId`, and `featureValues`. Empty results require user resolution.
+- `paseo_list_profiles`: inspect profile notes for clear coordinator/implementer role assignments; do not choose by list order or an evocative name. Explicit user choices take precedence. Ask for each unresolved role when profiles are absent or ambiguous; a user-selected available model does not require a named profile. Copy a chosen profile's `provider`, `model`, `modeId`, `thinkingOptionId`, and `featureValues`.
 - `paseo_list_providers`, `paseo_list_models({provider})`, `paseo_inspect_provider`: verify availability, reasoning choices and modes. Record resolved values rather than names alone.
 - Verify workspace path and repository identity, local instructions and worker skill installation in the selected provider's environment. A skill installed for the coordinator is not automatically installed for another provider. Check dependencies referenced by the implementation skill too.
+
+## Model verification and output
+
+At startup and in its final output, each coordinator and implementer reports its role, agent ID when available, selected provider/model, observed runtime provider/model, reasoning/settings when exposed, and the evidence source (runtime/session metadata or inspected Paseo agent configuration). Inspect current tool output to determine what is actually exposed; do not invent status fields. A prompt, profile label or create request proves intent, not actual usage. If runtime identity is unavailable, say `actual model unverified` and report the configured model separately; never guess self-identity.
+
+The coordinator records these observations with timestamps in durable state and includes both roles in its run and final project reports. Recheck resumed sessions so model changes remain visible. A verified mismatch blocks further dispatch/resumption until resolved; preserve active work rather than terminating it automatically. Distinguish selected-but-not-started workers from models actually used.
 
 ## Scheduling
 
@@ -21,8 +27,8 @@ Use `paseo_inspect_schedule({id})` to verify deployment and history, `paseo_sche
 
 Create with `paseo_create_agent`:
 
-- `provider`: actual `provider/model` from the chosen profile;
-- `settings`: `{modeId, thinkingOptionId, features}` with `features` copied from profile `featureValues`; omit only genuinely unspecified fields;
+- `provider`: actual selected `provider/model`;
+- `settings`: `{modeId, thinkingOptionId, features}` from the resolved choice, with `features` copied from profile `featureValues` when a profile is used; omit only genuinely unspecified fields;
 - `workspaceId`: verified designated workspace, never the coordinator's implicit default;
 - `title`, `labels`: project identity, issue identity and unique dispatch token;
 - `initialPrompt`: rendered worker contract; `notifyOnFinish: true`.

@@ -20,7 +20,12 @@ Dry-run the rendered contract against these cases before activation. Inspect int
 | Old lock with owner liveness unknown | Block until verified cessation/manual recovery | Stealing lock based only on age |
 | Duplicate schedule or overlapping parent scope | Discover under repository lock; reuse known authoritative schedule or report conflict | Creating another schedule or deleting unrelated one |
 | Schedule creation response lost | Use persisted unique name/prompt identity to rediscover; setup ticks cannot dispatch | Repeating create before resolving unknown outcome |
-| No profiles or coordinator reasoning cannot be enforced | Setup blocked; explicit user decision required | Silent profile/settings substitution |
+| Models omitted; profile notes clearly assign both roles | Resolve actual model/settings per role and report selection source | Hardcoded defaults or unnecessary model question |
+| Models omitted; profiles absent or ambiguous | Ask user for each unresolved role; verify chosen available models | Guessing from profile names or list order |
+| User supplies models differing from profile suggestions | Honor explicit choices; verify availability/settings | Overriding user choices with profiles |
+| Runtime model metadata available | Each agent outputs selected and observed model plus evidence; coordinator records both roles | Reporting only profile labels or intended configuration |
+| Runtime identity unavailable or model changes on resume | Mark unavailable identity unverified; report observed changes and block on verified mismatch | Guessing actual usage or silently accepting mismatch |
+| Coordinator reasoning cannot be enforced | Setup blocked; explicit user decision required | Silent settings substitution |
 | All implementation delivered, live acceptance deferred | Final evidence report; leave acceptance unpassed/open; persist cleanup_pending then delete recorded schedule | Closing deferred acceptance or waiting forever on intentionally excluded review |
 | Schedule deletion fails | Preserve ID/error/final report; next pass only retries cleanup | Restarting implementation or claiming deletion succeeded |
 | Deletion succeeds before final state update | Prewritten final report and cleanup_pending preserve completion; verify schedule absence on inspection | Recreating schedule because final phase was not saved |
