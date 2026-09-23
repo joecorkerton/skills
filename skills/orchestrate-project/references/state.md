@@ -4,13 +4,33 @@ Use one canonical key: normalized GitHub host/owner/repo plus parent issue ident
 
 ## Lock protocol
 
-Use an atomic filesystem `mkdir` for a per-repository lock in the shared operational-state root. Repository-wide exclusion also serializes setup for intersecting series. Hold it for the entire bounded coordinator pass, including external mutations; never wait under it for implementation to finish. Workers do not acquire this coordinator lock or write its state. They report through their sessions and git/PR evidence.
+This is the authoritative procedure for acquisition, contention and recovery; deploy a durable copy with the coordinator prompt.
 
-1. Attempt atomic creation; on success write owner metadata (unique token, coordinator agent/run identity, host, start time). The setup agent follows this same protocol.
-2. If it exists, exit without mutation. Age alone is not evidence a lock is abandoned. Recover only after positively establishing that the owner cannot still act (terminal/cancelled run with confirmed cessation); idle between tool calls is insufficient. Missing owner metadata, unavailable status or uncertain liveness requires human recovery. Never steal on a timer. This favors safety over unattended availability after ambiguous crashes.
-3. Only the owner may update state. Write a temporary file in the same directory and atomically rename it over state; increment revision. Release the lock only after verifying the owner token. On normal errors persist the blocker and release; on abrupt loss leave the lock for verified recovery.
+Use an atomic filesystem `mkdir` for a per-repository `repo.lock` in the shared operational-state root. Repository-wide exclusion also serializes setup for intersecting series. Hold it for the entire bounded coordinator pass, including external mutations; never wait under it for implementation to finish. Workers do not acquire this coordinator lock or write its state. They report through their sessions and git/PR evidence.
 
-A second run must reload state after acquiring the lock. Keep setup and all orchestration for this repository on the same host/root; otherwise this protocol provides no exclusion. Reconcile externally created schedules/workers on every pass, since they may not obey the lock.
+### Acquisition and release
+
+Serialize every lock creation, owner-metadata publication, release and recovery with a short-lived OS advisory guard on a separate, persistent `repo.lock.guard` file. Record the supported helper/command and absolute paths at setup (for example, a helper using `flock` where available). The helper holds the guard across the entire critical section in one process; separate tool calls do not retain it. Never unlink/replace the guard file. The OS releases the guard when its holder exits. All setup agents and coordinators must use this same guard; if support or participation cannot be verified, automated recovery is unavailable. Quiesce legacy runs before migrating their protocol.
+
+1. Under the guard, attempt atomic `mkdir`. On success, atomically publish immutable owner metadata: fresh unique token, canonical repository identity, host and runtime/daemon identity, coordinator agent/session ID, exact invocation/run ID (and schedule ID for scheduled runs), start time, and the evidence source used to look up that invocation. An equivalent immutable invocation identifier is acceptable if the runtime has no run ID; agent ID or PID alone is not. Record unavailable identity explicitly: such a lock cannot be automatically recovered. The setup agent follows this same protocol. Release the guard once metadata is published, or immediately on contention.
+2. After acquisition, reload state before acting and verify ownership/contract identities. Only the `repo.lock` holder may mutate coordinator state or perform orchestration mutations. Write a temporary state file in the same directory and atomically rename it over state; increment revision.
+3. On normal exit, including handled errors, persist status/blockers under the lock. Under the guard, verify the token still matches before removing owner metadata and the empty lock directory. A mismatch leaves the lock untouched and is reported. Abrupt loss leaves the lock for the procedure below.
+
+### Contention and stale-lock recovery
+
+An existing `repo.lock` starts **read-only liveness verification**, not an immediate exit. Snapshot its owner metadata/token and inspect evidence for that exact owner invocation: schedule history/logs, agent status/activity and runtime/session evidence as available. A finished worker is not evidence that its coordinator finished. Classify the result:
+
+- **Owner still active:** exit without mutations; report the owner and evidence.
+- **Owner conclusively ceased:** authoritative evidence establishes that the recorded invocation finished or was terminated, cannot resume with that token, and has no in-flight mutating calls/processes. A cancellation request alone is insufficient. Proceed with recovery below.
+- **Identity missing or cessation uncertain:** leave the lock and coordinator state untouched. Report the token/identity available, evidence checked, gaps and required human action in the run output (or configured reporting destination), not the ledger. Ask the operator to establish cessation/quiesce possible owners and arrange guarded recovery. Age, an idle/error status alone, absence from a recent agent list, or unavailable history is not proof. Automated recovery is unavailable without verifiable identity.
+
+For conclusively ceased owners only:
+
+1. Acquire the same advisory guard used by acquisition/release. Re-read `repo.lock` metadata and compare its token and owner identity with the verified snapshot. If absent or changed, release the guard and restart acquisition/liveness verification; the earlier evidence does not authorize touching a successor's lock.
+2. With the guard still held and the same token verified, remove only that lock's metadata and empty directory, then atomically `mkdir` a new `repo.lock` and publish your fresh token/identity. Unexpected contents or any failure blocks further action; report the exact condition rather than recursively deleting. Holding the guard throughout prevents another recoverer or acquirer from slipping between the comparison and replacement. A token check followed by unguarded deletion/rename is not safe recovery.
+3. Release the guard, reload state under the newly acquired repository lock, and reconcile schedules, workers and unresolved intents before dispatching. Persist recovery evidence with the next atomic state update. Recovery grants no permission to skip reconciliation or repeat ambiguous external calls.
+
+Keep setup and all orchestration for this repository on the same host/root; otherwise this protocol provides no exclusion. Reconcile externally created schedules/workers on every pass, since they may not obey the lock.
 
 ## Minimal record
 
